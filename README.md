@@ -1,6 +1,8 @@
 # Hyperliquid Rust SDK
 
-This project is a **Rust SDK for interacting with the Hyperliquid exchange**, providing tools to handle HTTP and WebSocket communications, trade execution, and data retrieval for both spot and perpetual trading pairs. The SDK simplifies integration with Hyperliquid's API, enabling developers to focus on building trading bots, analytics tools, or other exchange-related applications.
+This is a simple wrapper for interacting with the Hyperliquid exchange using Rust. If you're looking to trade on Hyperliquid with Rust, this SDK is for you. While an official SDK exists, it's not actively maintained, so this project was created to provide a more reliable and user-friendly option.
+
+Whether you're building trading bots, analytics tools, or just experimenting, this SDK aims to make your journey smoother and more efficient. Enjoy coding!
 
 ---
 
