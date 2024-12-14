@@ -1,6 +1,56 @@
+use crate::http::client::HttpClient;
 use serde::Deserialize;
+use std::collections::HashMap;
 
-#[derive(Deserialize)]
+#[derive(Debug, Default)]
+pub struct TokenManager {
+    symbol_to_internal: HashMap<String, String>,
+    internal_to_symbol: HashMap<String, String>,
+}
+
+impl TokenManager {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn from_api(client: &HttpClient) -> Result<Self, Box<dyn std::error::Error>> {
+        let spot_meta = client.fetch_spot_meta().await?;
+        let mut mapper = TokenManager::new();
+
+        for universe in spot_meta.universe {
+            if universe.name.starts_with("@") {
+                let tokens: Vec<String> = universe
+                    .tokens
+                    .iter()
+                    .map(|&index| spot_meta.tokens[index as usize].name.clone())
+                    .collect();
+                let pair_name = format!("{}/{}", tokens[0], tokens[1]);
+                mapper.add_mapping(&pair_name, &universe.name);
+            } else {
+                mapper.add_mapping(&universe.name, &universe.name);
+            }
+        }
+
+        Ok(mapper)
+    }
+
+    pub fn add_mapping(&mut self, symbol: &str, internal_code: &str) {
+        self.symbol_to_internal
+            .insert(symbol.to_string(), internal_code.to_string());
+        self.internal_to_symbol
+            .insert(internal_code.to_string(), symbol.to_string());
+    }
+
+    pub fn get_internal_code(&self, symbol: &str) -> Option<&String> {
+        self.symbol_to_internal.get(symbol)
+    }
+
+    pub fn get_symbol(&self, internal_code: &str) -> Option<&String> {
+        self.internal_to_symbol.get(internal_code)
+    }
+}
+
+#[derive(Deserialize, Debug)]
 pub struct Token {
     pub name: String,
     #[serde(rename = "szDecimals")]
@@ -18,7 +68,7 @@ pub struct Token {
     pub full_name: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Universe {
     pub name: String,
     pub tokens: Vec<u32>,
