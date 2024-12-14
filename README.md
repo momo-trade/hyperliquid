@@ -38,5 +38,9 @@ To run the WebSocket example for fetching live data, use the following command:
 cargo run --example fetch_websocket_data
 ```
 
+## Questions and Support
+
+If you have any questions, feel free to ask on X (Twitter). Also, it would mean a lot if you could use our Hyperliquid referral link: https://app.hyperliquid.xyz/join/CHITA. 😊
+
 ## License
 This project is open-source and distributed under the [MIT License](https://opensource.org/licenses/MIT).
