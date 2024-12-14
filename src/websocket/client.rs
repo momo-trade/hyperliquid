@@ -113,6 +113,7 @@ pub struct Candle {
 #[derive(Clone)]
 pub struct WebSocketConnection {
     ws_stream: Arc<Mutex<WebSocketStream<MaybeTlsStream<TcpStream>>>>,
+    pub url: String,
     pub all_mids: Arc<Mutex<HashMap<String, String>>>,
     pub trades: Arc<Mutex<HashMap<String, Vec<TradeData>>>>,
     pub l2_books: Arc<Mutex<HashMap<String, WsBook>>>,
@@ -124,10 +125,11 @@ pub struct WebSocketConnection {
 impl WebSocketConnection {
     pub async fn connect(url: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let (ws_stream, _) = connect_async(url).await?;
-        info!("WebSocket connection established.");
+        info!("WebSocket connection established to {}", url);
 
         Ok(WebSocketConnection {
             ws_stream: Arc::new(Mutex::new(ws_stream)),
+            url: url.to_string(),
             all_mids: Arc::new(Mutex::new(HashMap::new())),
             trades: Arc::new(Mutex::new(HashMap::new())),
             l2_books: Arc::new(Mutex::new(HashMap::new())),
@@ -137,7 +139,13 @@ impl WebSocketConnection {
         })
     }
 
-    pub async fn connect_with_retries(url: &str) -> Arc<Self> {
+    pub async fn connect_with_retries(is_test: bool) -> Arc<Self> {
+        let url = if is_test {
+            "wss://api.hyperliquid-testnet.xyz/ws"
+        } else {
+            "wss://api.hyperliquid.xyz/ws"
+        };
+
         let mut attempts = 0;
 
         loop {
@@ -160,7 +168,7 @@ impl WebSocketConnection {
         }
     }
 
-    pub async fn receive_messages(&self, url: &str) {
+    pub async fn receive_messages(&self) {
         loop {
             let mut ws_stream = self.ws_stream.lock().await;
 
@@ -184,7 +192,7 @@ impl WebSocketConnection {
                 }
             }
 
-            match connect_async(url).await {
+            match connect_async(&self.url).await {
                 Ok((new_ws_stream, _)) => {
                     *ws_stream = new_ws_stream;
                     info!("WebSocket reconnected successfully.");

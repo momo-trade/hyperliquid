@@ -8,9 +8,9 @@ use tokio::time::{self, Duration};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init(); // Initialize the logger
-    let url = "wss://api.hyperliquid.xyz/ws";
+                                                                                                // let url = "wss://api.hyperliquid.xyz/ws";
 
-    let connection = WebSocketConnection::connect_with_retries(url).await;
+    let connection = WebSocketConnection::connect_with_retries(false).await;
     let connection = Arc::new(connection);
 
     let coin = "@107"; //SPOT HYPE/USDC
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Message receiving task (with reconnection support)
     let connection_clone = Arc::clone(&connection);
     tokio::spawn(async move {
-        connection_clone.receive_messages(url).await;
+        connection_clone.receive_messages().await;
     });
 
     // Heartbeat sending task
