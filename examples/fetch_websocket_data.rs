@@ -1,3 +1,5 @@
+use hyperliquid::http::client::HttpClient;
+use hyperliquid::models::TokenManager;
 use hyperliquid::utils::time::unix_time_to_jst;
 use hyperliquid::websocket::client::WebSocketConnection;
 use log::{info, warn};
@@ -13,21 +15,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let connection = WebSocketConnection::connect_with_retries(false).await;
     let connection = Arc::new(connection);
 
-    let coin = "@107"; //SPOT HYPE/USDC
+    let http_client = HttpClient::new(false);
+    let token_manager = TokenManager::from_api(&http_client).await.unwrap();
+
+    let symbol = "HYPE/USDC";
+    let coin = match token_manager.get_internal_code(symbol) {
+        Some(code) => code.clone(),
+        None => {
+            println!("Token not found");
+            return Err(Box::from("Token not found"));
+        }
+    };
 
     // Subscriptions
     connection.subscribe("allMids", HashMap::new()).await?;
 
     connection
-        .subscribe("trades", HashMap::from([("coin", coin)]))
+        .subscribe("trades", HashMap::from([("coin", &*coin)]))
         .await?;
 
     connection
-        .subscribe("l2Book", HashMap::from([("coin", coin)]))
+        .subscribe("l2Book", HashMap::from([("coin", &*coin)]))
         .await?;
 
     let mut params = HashMap::new();
-    params.insert("coin", coin);
+    params.insert("coin", coin.as_str());
     params.insert("interval", "5m");
     connection.subscribe("candle", params).await?;
 
@@ -53,23 +65,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Access `all_mids`
             let all_mids = connection_clone.all_mids.lock().await;
             // info!("allMids: {:?}", all_mids);
-            if let Some(mid_price) = all_mids.get(coin) {
-                info!("HYPE mid_price: {}", mid_price);
+            if let Some(mid_price) = all_mids.get(coin.as_str()) {
+                info!("{} mid_price: {}", symbol, mid_price);
             } else {
-                warn!("HYPE mid_price not found.");
+                warn!("{} mid_price not found.", symbol);
             }
 
             // Access `trades`
             let trades = connection_clone.trades.lock().await;
             if trades.is_empty() {
                 warn!("No trade data available.");
-            } else if let Some(latest_trades) = trades.get(coin) {
+            } else if let Some(latest_trades) = trades.get(&*coin) {
                 if latest_trades.is_empty() {
-                    warn!("No trade data available for HYPE.");
+                    warn!("No trade data available for {}.", symbol);
                 } else {
                     let latest_trade = latest_trades.last().unwrap();
                     info!(
-                        "Latest trade data for HYPE ({} entries): Side: {}, Price: {}, Size: {}",
+                        "Latest trade data for {} ({} entries): Side: {}, Price: {}, Size: {}",
+                        symbol,
                         latest_trades.len(),
                         latest_trade.side.as_str(),
                         latest_trade.price,
@@ -77,12 +90,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
             } else {
-                warn!("No trade data available for HYPE.");
+                warn!("No trade data available.");
             }
 
             let l2_books = connection_clone.l2_books.lock().await;
             // info!("l2Books: {:#?}", l2_books);
-            if let Some(book) = l2_books.get(coin) {
+            if let Some(book) = l2_books.get(&*coin) {
                 let best_ask = book.ask_levels.first().map(|level| {
                     format!(
                         "Price: {:.3}, Size: {:.2}, Orders: {}",
@@ -106,11 +119,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     best_bid.unwrap_or_else(|| "No Bids".to_string())
                 );
             } else {
-                warn!("No book data available for HYPE.");
+                warn!("No book data available.");
             }
 
             let candles = connection_clone.candles.lock().await;
-            match candles.get(coin) {
+            match candles.get(&*coin) {
                 Some(candle_list) if candle_list.len() > 1 => {
                     // 確定した最後の足（未確定足の1つ前）
                     if let Some(confirmed_candle) = candle_list.get(candle_list.len() - 2) {
@@ -139,8 +152,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
                     }
                 }
-                Some(_) => warn!("Candle list is empty for @107."),
-                None => warn!("No candle data available for @107."),
+                Some(_) => warn!("Candle list is empty."),
+                None => warn!("No candle data available."),
             }
 
             // 板情報っぽく表示
