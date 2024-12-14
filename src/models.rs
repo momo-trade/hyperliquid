@@ -48,6 +48,10 @@ impl TokenManager {
     pub fn get_symbol(&self, internal_code: &str) -> Option<&String> {
         self.internal_to_symbol.get(internal_code)
     }
+
+    pub fn list_available_pairs(&self) -> Vec<String> {
+        self.symbol_to_internal.keys().cloned().collect()
+    }
 }
 
 #[derive(Deserialize, Debug)]

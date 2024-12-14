@@ -21,6 +21,14 @@ async fn main() {
     };
     info!("Token code: {}", token_code);
 
+    //利用可能なトークン一覧(Spot)
+    let available_pairs = token_manager.list_available_pairs();
+    info!(
+        "Number of available trading pairs: {}",
+        available_pairs.len()
+    );
+    info!("Available pairs: {:?}", available_pairs);
+
     // match client.fetch_spot_meta().await {
     //     Ok(spot_meta) => {
     //         println!("Tokens:");
