@@ -2,6 +2,7 @@ use crate::models::{SpotAssetResponse, SpotMetaResponse};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::collections::HashMap;
 
 /// HttpClientError 型を定義
 #[derive(Debug)]
@@ -65,8 +66,9 @@ impl HttpClient {
             .map_err(|e| HttpClientError::JsonParse(e.to_string()))
     }
 
-    pub async fn fetch_all_mids(&self) {
-        todo!("fetch_all_mids");
+    pub async fn fetch_all_mids(&self) -> Result<HashMap<String, String>, HttpClientError> {
+        let request_body = serde_json::json!({"type": "allMids"});
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_open_orders(&self) {
