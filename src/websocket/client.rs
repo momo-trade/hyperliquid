@@ -15,6 +15,7 @@ use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 pub struct WebSocketConnection {
     ws_stream: Arc<Mutex<WebSocketStream<MaybeTlsStream<TcpStream>>>>,
     pub url: String,
+    pub subscriptions: Arc<Mutex<Vec<HashMap<String, String>>>>,
     pub all_mids: Arc<Mutex<HashMap<String, String>>>,
     pub trades: Arc<Mutex<HashMap<String, Vec<TradeData>>>>,
     pub l2_books: Arc<Mutex<HashMap<String, WsBook>>>,
@@ -31,6 +32,7 @@ impl WebSocketConnection {
         Ok(WebSocketConnection {
             ws_stream: Arc::new(Mutex::new(ws_stream)),
             url: url.to_string(),
+            subscriptions: Arc::new(Mutex::new(Vec::new())),
             all_mids: Arc::new(Mutex::new(HashMap::new())),
             trades: Arc::new(Mutex::new(HashMap::new())),
             l2_books: Arc::new(Mutex::new(HashMap::new())),
@@ -80,13 +82,31 @@ impl WebSocketConnection {
                             error!("Message processing error: {}", e);
                         }
                     }
-
-                    Ok(Message::Close(_)) => {
+                    Ok(Message::Close(_)) | Err(_) => {
                         info!("Connection closed. Attempting to reconnect.");
-                        break;
-                    }
-                    Err(e) => {
-                        error!("Message reception error: {}", e);
+
+                        // 再接続処理
+                        match connect_async(&self.url).await {
+                            Ok((new_ws_stream, _)) => {
+                                *ws_stream = new_ws_stream;
+                                info!("WebSocket reconnected successfully.");
+
+                                // 再接続後にサブスクリプションを再送信
+                                let subscriptions = self.subscriptions.lock().await.clone();
+                                for subscription in subscriptions {
+                                    let subscription_type =
+                                        subscription.get("type").cloned().unwrap_or_default();
+                                    let _ = self
+                                        .subscribe_with_strings(&subscription_type, subscription)
+                                        .await;
+                                }
+                            }
+                            Err(e) => {
+                                error!("WebSocket reconnection failed: {}", e);
+                                tokio::time::sleep(Duration::from_secs(5)).await;
+                            }
+                        }
+
                         break;
                     }
                     _ => {}
@@ -111,6 +131,18 @@ impl WebSocketConnection {
         subscription_type: &str,
         params: HashMap<&str, &str>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let params = params
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        self.subscribe_with_strings(subscription_type, params).await
+    }
+
+    pub async fn subscribe_with_strings(
+        &self,
+        subscription_type: &str,
+        params: HashMap<String, String>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut subscription_msg = serde_json::json!({
             "method": "subscribe",
             "subscription": {
@@ -118,11 +150,13 @@ impl WebSocketConnection {
             }
         });
 
+        // サブスクリプションメッセージを更新
         if let Some(subscription_obj) = subscription_msg
             .get_mut("subscription")
             .and_then(|v| v.as_object_mut())
         {
-            for (key, value) in params {
+            for (key, value) in &params {
+                // `params` を借用する
                 subscription_obj.insert(
                     key.to_string(),
                     serde_json::Value::String(value.to_string()),
@@ -132,11 +166,22 @@ impl WebSocketConnection {
 
         info!("Subscription message: {}", subscription_msg);
 
+        // WebSocket ストリームをロックして送信
         let mut ws_stream = self.ws_stream.lock().await;
         ws_stream
             .send(Message::Text(subscription_msg.to_string()))
             .await?;
+
         info!("Subscription sent for: {}", subscription_type);
+
+        // サブスクリプションを保持
+        let mut subscriptions = self.subscriptions.lock().await;
+        subscriptions.push(
+            params
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<HashMap<String, String>>(),
+        );
 
         Ok(())
     }

@@ -134,5 +134,5 @@ async fn main() {
             return;
         }
     };
-    info!("Candle snapshot: {:#?}", candle_snapshot);
+    info!("Candle snapshot: {}", candle_snapshot.len());
 }

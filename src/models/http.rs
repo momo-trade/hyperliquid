@@ -1,5 +1,6 @@
 use crate::http::client::HttpClient;
 use crate::utils::data_conversion::{parse_str_to_f64, parse_str_to_option_f64};
+use ethers::types::H160;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
@@ -121,6 +122,7 @@ pub struct OpenOrder {
     pub timestamp: u64,
 }
 pub type OpenOrdersResponse = Vec<OpenOrder>;
+pub type HistoricalOrdersResponse = Vec<OpenOrder>;
 
 #[derive(Debug, Deserialize)]
 pub struct RateLimitResponse {
@@ -182,6 +184,31 @@ pub struct UserFills {
     pub tid: u64,
 }
 pub type UserFillsResponse = Vec<UserFills>;
+
+#[derive(Serialize)]
+pub struct OrderStatusRequest {
+    #[serde(rename = "type")]
+    pub request_type: String,
+    pub user: H160,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oid: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cloid: Option<String>,
+}
+
+impl OrderStatusRequest {
+    pub fn new(user: H160, oid: Option<u64>, cloid: Option<String>) -> Result<Self, String> {
+        if oid.is_none() && cloid.is_none() {
+            return Err("Either oid or cloid must be provided".to_string());
+        }
+        Ok(Self {
+            request_type: "orderStatus".to_string(),
+            user,
+            oid,
+            cloid,
+        })
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct OrderStatusResponse {
@@ -377,4 +404,3 @@ pub struct Trade {
     #[serde(rename = "sz")]
     pub size: String,
 }
-

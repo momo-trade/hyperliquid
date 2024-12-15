@@ -1,7 +1,7 @@
 use crate::models::{
-    CandleSnapshotRequest, CandleSnapshotResponse, L2BookRequest, L2BookResponse,
-    OpenOrdersResponse, OrderStatusResponse, RateLimitResponse, SpotAssetResponse,
-    SpotMetaResponse, SpotTokenBalancesResponse, UserFillsResponse,
+    CandleSnapshotRequest, CandleSnapshotResponse, HistoricalOrdersResponse, L2BookRequest,
+    L2BookResponse, OpenOrdersResponse, OrderStatusRequest, OrderStatusResponse, RateLimitResponse,
+    SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse, UserFillsResponse,
 };
 use ethers::types::H160;
 use log::debug;
@@ -130,19 +130,10 @@ impl HttpClient {
         &self,
         address: H160,
         oid: Option<u64>,
-        cloid: Option<&str>,
+        cloid: Option<String>,
     ) -> Result<OrderStatusResponse, HttpClientError> {
-        let mut request_body = serde_json::json!({"type": "orderStatus", "user": address});
-
-        if let Some(order_id) = oid {
-            request_body["oid"] = serde_json::json!(order_id);
-        } else if let Some(client_order_id) = cloid {
-            request_body["cloid"] = serde_json::json!(client_order_id);
-        } else {
-            return Err(HttpClientError::InvalidInput(
-                "Either oid or cloid must be provided".to_string(),
-            ));
-        }
+        let request_body =
+            OrderStatusRequest::new(address, oid, cloid).map_err(HttpClientError::InvalidInput)?;
         self.send_info_request(request_body).await
     }
 
@@ -164,7 +155,6 @@ impl HttpClient {
         end_time: Option<u64>,
     ) -> Result<CandleSnapshotResponse, HttpClientError> {
         let request_body = CandleSnapshotRequest::new(coin, interval, start_time, end_time);
-        debug!("Request: {:#?}", request_body);
         self.send_info_request(request_body).await
     }
 
@@ -172,8 +162,12 @@ impl HttpClient {
         todo!("fetch_builder_fee_approval");
     }
 
-    pub async fn fetch_historical_orders(&self) {
-        todo!("fetch_historical_orders");
+    pub async fn fetch_historical_orders(
+        &self,
+        address: H160,
+    ) -> Result<HistoricalOrdersResponse, HttpClientError> {
+        let request_body = serde_json::json!({"type": "historicalOrders", "user": address});
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_twap_slice_fills(&self) {
