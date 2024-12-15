@@ -293,7 +293,7 @@ impl WebSocketConnection {
         let parse_levels = |level_data: &Value| -> Vec<WsLevel> {
             level_data
                 .as_array()
-                .unwrap_or(&vec![]) // 安全なデフォルト値を提供
+                .unwrap_or(&vec![])
                 .iter()
                 .filter_map(|level| {
                     let price = level

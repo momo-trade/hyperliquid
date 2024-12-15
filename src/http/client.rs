@@ -1,8 +1,11 @@
-use crate::models::{SpotAssetResponse, SpotMetaResponse};
+use crate::models::{
+    OpenOrder, RateLimitResponse, SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse,
+};
+use ethers::types::H160;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
 
 /// HttpClientError 型を定義
 #[derive(Debug)]
@@ -71,8 +74,12 @@ impl HttpClient {
         self.send_info_request(request_body).await
     }
 
-    pub async fn fetch_open_orders(&self) {
-        todo!("fetch_open_orders");
+    pub async fn fetch_open_orders(
+        &self,
+        address: H160,
+    ) -> Result<Vec<OpenOrder>, HttpClientError> {
+        let request_body = serde_json::json!({"type": "openOrders", "user": address});
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_user_fills(&self) {
@@ -87,8 +94,12 @@ impl HttpClient {
         todo!("fetch_user_fills_by_time");
     }
 
-    pub async fn fetch_rate_limits(&self) {
-        todo!("fetch_rate_limits");
+    pub async fn fetch_rate_limits(
+        &self,
+        address: H160,
+    ) -> Result<RateLimitResponse, HttpClientError> {
+        let request_body = serde_json::json!({"type": "userRateLimit", "user": address});
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_order_status(&self) {
@@ -129,8 +140,12 @@ impl HttpClient {
         self.send_info_request(request_body).await
     }
 
-    pub async fn fetch_spot_token_balance(&self) {
-        todo!("fetch_spot_balance");
+    pub async fn fetch_spot_token_balances(
+        &self,
+        address: H160,
+    ) -> Result<SpotTokenBalancesResponse, HttpClientError> {
+        let request_body = serde_json::json!({"type": "spotClearinghouseState", "user": address});
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_auction_info(&self) {

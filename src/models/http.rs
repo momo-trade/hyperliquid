@@ -1,4 +1,5 @@
 use crate::http::client::HttpClient;
+use crate::utils::data_conversion::parse_str_to_f64;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -104,4 +105,44 @@ pub struct SpotAssetResponse {
     pub tokens: Vec<Token>,
     pub universe: Vec<Universe>,
     pub market_data: Vec<MarketData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenOrder {
+    pub coin: String,
+    #[serde(rename = "limitPx", deserialize_with = "parse_str_to_f64")]
+    pub limit_price: f64,
+    #[serde(rename = "oid")]
+    pub order_id: u64,
+    pub side: String,
+    #[serde(rename = "sz", deserialize_with = "parse_str_to_f64")]
+    pub size: f64,
+    pub timestamp: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RateLimitResponse {
+    #[serde(rename = "cumVlm", deserialize_with = "parse_str_to_f64")]
+    pub cum_volume: f64,
+    #[serde(rename = "nRequestsUsed")]
+    pub n_requests_used: u64,
+    #[serde(rename = "nRequestsCap")]
+    pub n_requests_cap: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SpotTokenBalance {
+    pub coin: String,
+    pub token: u64,
+    #[serde(deserialize_with = "parse_str_to_f64")]
+    pub hold: f64,
+    #[serde(deserialize_with = "parse_str_to_f64")]
+    pub total: f64,
+    #[serde(rename="entryNtl", deserialize_with = "parse_str_to_f64")]
+    pub entry_notional: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SpotTokenBalancesResponse {
+    pub balances: Vec<SpotTokenBalance>,
 }

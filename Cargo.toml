@@ -15,6 +15,8 @@ futures = "0.3"
 log = "0.4"
 env_logger = "0.11"
 chrono = "0.4"
+ethers = {version = "2.0.14", features = ["eip712", "abigen"]}
+dotenv = "0.15"
 
 [dev-dependencies]
 mockito = "1.0"
