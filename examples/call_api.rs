@@ -19,6 +19,8 @@ async fn main() {
     let wallet_address = address_from_env();
     info!("Wallet address: {:#x}", wallet_address);
 
+    let order_id = 51243188761; // order情報を取得したいorder_idを設定。無い場合はfetch_order_status毎コメントアウト
+
     //fetch_all_mids
     info!("Fetching all mids...");
     let all_mids = match client.fetch_all_mids().await {
@@ -67,4 +69,56 @@ async fn main() {
         }
     };
     info!("Spot token balance: {:#?}", spot_token_balance.balances);
+
+    //user_fills
+    info!("Fetching user fills...");
+    let user_fills = match client.fetch_user_fills(wallet_address, None).await {
+        Ok(user_fills) => user_fills,
+        Err(e) => {
+            error!("Failed to fetch user fills: {}", e);
+            return;
+        }
+    };
+    info!("Number of user fills: {}", user_fills.len());
+    info!("User fills: {:#?}", user_fills);
+
+    //order_status
+    info!("Fetching order status...");
+    let order_status = match client
+        .fetch_order_status(wallet_address, Some(order_id), None)
+        .await
+    {
+        Ok(order_status) => order_status,
+        Err(e) => {
+            error!("Failed to fetch order status: {}", e);
+            return;
+        }
+    };
+    info!("Order status: {:#?}", order_status);
+
+    //l2_book
+    info!("Fetching L2 book...");
+    let l2_book = match client.fetch_l2_book("HYPE", None, None).await {
+        Ok(l2_book) => l2_book,
+        Err(e) => {
+            error!("Failed to fetch L2 book: {}", e);
+            return;
+        }
+    };
+    info!("Bids:");
+    for bid in &l2_book.levels[0] {
+        info!(
+            "Price: {:.2}, Size: {:.2}, Orders: {}",
+            bid.price, bid.size, bid.order_count
+        );
+    }
+
+    // Asks
+    info!("Asks:");
+    for ask in &l2_book.levels[1] {
+        info!(
+            "Price: {:.2}, Size: {:.2}, Orders: {}",
+            ask.price, ask.size, ask.order_count
+        );
+    }
 }

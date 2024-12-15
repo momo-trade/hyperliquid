@@ -1,6 +1,6 @@
-use serde_json::Value;
 use log::{debug, error};
 use serde::Deserialize;
+use serde_json::Value;
 
 pub fn parse_str_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
 where
@@ -23,5 +23,20 @@ where
                 "Expected a string or number for f64",
             ))
         }
+    }
+}
+
+pub fn parse_str_to_option_f64<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value: Option<Value> = Option::deserialize(deserializer)?;
+    match value {
+        Some(Value::String(ref s)) => s.parse::<f64>().map(Some).map_err(serde::de::Error::custom),
+        Some(Value::Number(ref n)) => Ok(n.as_f64()),
+        None => Ok(None), // フィールドが存在しない場合
+        _ => Err(serde::de::Error::custom(
+            "Expected a string, number, or null for f64",
+        )),
     }
 }

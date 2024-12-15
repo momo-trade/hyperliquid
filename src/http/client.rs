@@ -1,17 +1,21 @@
 use crate::models::{
-    OpenOrder, RateLimitResponse, SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse,
+    L2BookRequest, L2BookResponse, OpenOrdersResponse, OrderStatusResponse,
+    RateLimitResponse, SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse,
+    UserFillsResponse,
 };
 use ethers::types::H160;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
+use log::debug;
 
 /// HttpClientError 型を定義
 #[derive(Debug)]
 pub enum HttpClientError {
     RequestFailed(reqwest::Error),
     JsonParse(String),
+    InvalidInput(String),
 }
 
 impl std::fmt::Display for HttpClientError {
@@ -19,6 +23,7 @@ impl std::fmt::Display for HttpClientError {
         match self {
             HttpClientError::RequestFailed(e) => write!(f, "Request failed: {}", e),
             HttpClientError::JsonParse(e) => write!(f, "Failed to parse JSON: {}", e),
+            HttpClientError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
         }
     }
 }
@@ -64,6 +69,8 @@ impl HttpClient {
             .await
             .map_err(HttpClientError::RequestFailed)?;
 
+        debug!("Response: {}", response_text);
+
         // レスポンスを JSON にデシリアライズ
         serde_json::from_str::<T>(&response_text)
             .map_err(|e| HttpClientError::JsonParse(e.to_string()))
@@ -77,21 +84,34 @@ impl HttpClient {
     pub async fn fetch_open_orders(
         &self,
         address: H160,
-    ) -> Result<Vec<OpenOrder>, HttpClientError> {
+    ) -> Result<OpenOrdersResponse, HttpClientError> {
         let request_body = serde_json::json!({"type": "openOrders", "user": address});
         self.send_info_request(request_body).await
     }
 
-    pub async fn fetch_user_fills(&self) {
-        todo!("fetch_user_fills");
+    pub async fn fetch_user_fills(
+        &self,
+        address: H160,
+        aggregate_by_time: Option<bool>,
+    ) -> Result<UserFillsResponse, HttpClientError> {
+        let mut request_body = serde_json::json!({"type": "userFills", "user": address});
+
+        // aggregate_by_time = trueだと部分約定を一つのレコードにまとめてくれる
+        if let Some(aggregate_by_time) = aggregate_by_time {
+            request_body.as_object_mut().unwrap().insert(
+                "aggregateByTime".to_string(),
+                serde_json::Value::Bool(aggregate_by_time),
+            );
+        }
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_frontend_open_orders(&self) {
-        todo!("fetch_frontend_open_orders");
+        todo!("frontendOpenOrders");
     }
 
     pub async fn fetch_user_fills_by_time(&self) {
-        todo!("fetch_user_fills_by_time");
+        todo!("userFillsByTime");
     }
 
     pub async fn fetch_rate_limits(
@@ -102,12 +122,34 @@ impl HttpClient {
         self.send_info_request(request_body).await
     }
 
-    pub async fn fetch_order_status(&self) {
-        todo!("fetch_order_status");
+    pub async fn fetch_order_status(
+        &self,
+        address: H160,
+        oid: Option<u64>,
+        cloid: Option<&str>,
+    ) -> Result<OrderStatusResponse, HttpClientError> {
+        let mut request_body = serde_json::json!({"type": "orderStatus", "user": address});
+
+        if let Some(order_id) = oid {
+            request_body["oid"] = serde_json::json!(order_id);
+        } else if let Some(client_order_id) = cloid {
+            request_body["cloid"] = serde_json::json!(client_order_id);
+        } else {
+            return Err(HttpClientError::InvalidInput(
+                "Either oid or cloid must be provided".to_string(),
+            ));
+        }
+        self.send_info_request(request_body).await
     }
 
-    pub async fn fetch_l2_book(&self) {
-        todo!("fetch_l2_book");
+    pub async fn fetch_l2_book(
+        &self,
+        coin: &str,
+        n_sig_figs: Option<u8>,
+        mantissa: Option<u8>,
+    ) -> Result<L2BookResponse, HttpClientError> {
+        let request_body = L2BookRequest::new(coin, n_sig_figs, mantissa);
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_candle_snapshot(&self) {

@@ -1,6 +1,6 @@
 use crate::http::client::HttpClient;
-use crate::utils::data_conversion::parse_str_to_f64;
-use serde::Deserialize;
+use crate::utils::data_conversion::{parse_str_to_f64, parse_str_to_option_f64};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Default)]
@@ -119,6 +119,7 @@ pub struct OpenOrder {
     pub size: f64,
     pub timestamp: u64,
 }
+pub type OpenOrdersResponse = Vec<OpenOrder>;
 
 #[derive(Debug, Deserialize)]
 pub struct RateLimitResponse {
@@ -138,11 +139,128 @@ pub struct SpotTokenBalance {
     pub hold: f64,
     #[serde(deserialize_with = "parse_str_to_f64")]
     pub total: f64,
-    #[serde(rename="entryNtl", deserialize_with = "parse_str_to_f64")]
+    #[serde(rename = "entryNtl", deserialize_with = "parse_str_to_f64")]
     pub entry_notional: f64,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SpotTokenBalancesResponse {
     pub balances: Vec<SpotTokenBalance>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UserFills {
+    #[serde(rename = "closedPnl", deserialize_with = "parse_str_to_f64")]
+    pub closed_pnl: f64,
+    pub coin: String,
+    pub crossed: bool,
+    pub dir: String,
+    pub hash: String,
+    #[serde(rename = "oid")]
+    pub order_id: u64,
+    #[serde(rename = "px", deserialize_with = "parse_str_to_f64")]
+    pub price: f64,
+    pub side: String,
+    #[serde(rename = "startPosition", deserialize_with = "parse_str_to_f64")]
+    pub start_position: f64,
+    #[serde(rename = "sz", deserialize_with = "parse_str_to_f64")]
+    pub size: f64,
+    #[serde(rename = "time")]
+    pub timestamp: u64,
+    #[serde(deserialize_with = "parse_str_to_f64")]
+    pub fee: f64,
+    #[serde(rename = "feeToken")]
+    pub fee_token: String,
+    #[serde(
+        rename = "builderFee",
+        deserialize_with = "parse_str_to_option_f64",
+        default
+    )]
+    pub builder_fee: Option<f64>,
+    pub tid: u64,
+}
+pub type UserFillsResponse = Vec<UserFills>;
+
+#[derive(Debug, Deserialize)]
+pub struct OrderStatusResponse {
+    pub status: String, // order or unknownOid
+    pub order: Option<OrderDetail>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OrderDetail {
+    pub order: OrderInfo,
+    pub status: String, // "filled" | "open" | "canceled" | "triggered" | "rejected" | "marginCanceled"
+    #[serde(rename = "statusTimestamp")]
+    pub status_timestamp: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OrderInfo {
+    pub coin: String,
+    pub side: String,
+    #[serde(rename = "limitPx", deserialize_with = "parse_str_to_f64")]
+    pub limit_price: f64,
+    #[serde(rename = "sz", deserialize_with = "parse_str_to_f64")]
+    pub size: f64,
+    #[serde(rename = "oid")]
+    pub order_id: u64,
+    pub timestamp: u64,
+    #[serde(rename = "triggerCondition")]
+    pub trigger_condition: String,
+    #[serde(rename = "isTrigger")]
+    pub is_trigger: bool,
+    #[serde(rename = "triggerPx", deserialize_with = "parse_str_to_f64")]
+    pub trigger_price: f64,
+    pub children: Vec<OrderInfo>,
+    #[serde(rename = "isPositionTpsl")]
+    pub is_position_tpsl: bool,
+    #[serde(rename = "reduceOnly")]
+    pub reduce_only: bool,
+    #[serde(rename = "orderType")]
+    pub order_type: String, //Market, Limit
+    #[serde(rename = "origSz", deserialize_with = "parse_str_to_f64")]
+    pub original_size: f64,
+    pub tif: String, //FrontendMarketなど
+    pub cloid: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OrderLevel {
+    #[serde(rename = "px", deserialize_with = "parse_str_to_f64")]
+    pub price: f64,
+    #[serde(rename = "sz", deserialize_with = "parse_str_to_f64")]
+    pub size: f64,
+    #[serde(rename = "n")]
+    pub order_count: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct L2BookResponse {
+    pub coin: String,
+    #[serde(rename = "time")]
+    pub timestamp: u64,
+    pub levels: [Vec<OrderLevel>; 2], // bids: levels[0], asks: levels[1]
+}
+
+#[derive(Serialize)]
+pub struct L2BookRequest {
+    #[serde(rename = "type")]
+    pub request_type: String,
+    pub coin: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub n_sig_figs: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mantissa: Option<u8>,
+}
+
+impl L2BookRequest {
+    pub fn new(coin: &str, n_sig_figs: Option<u8>, mantissa: Option<u8>) -> Self {
+        Self {
+            request_type: "l2Book".to_string(),
+            coin: coin.to_string(),
+            n_sig_figs,
+            mantissa,
+        }
+    }
 }
