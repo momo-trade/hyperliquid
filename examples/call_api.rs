@@ -121,4 +121,18 @@ async fn main() {
             ask.price, ask.size, ask.order_count
         );
     }
+
+    //candle snapshot
+    info!("Fetching candle snapshot...");
+    let candle_snapshot = match client
+        .fetch_candle_snapshot("HYPE", "15m", None, None)
+        .await
+    {
+        Ok(candle_snapshot) => candle_snapshot,
+        Err(e) => {
+            error!("Failed to fetch candle snapshot: {}", e);
+            return;
+        }
+    };
+    info!("Candle snapshot: {:#?}", candle_snapshot);
 }

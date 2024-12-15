@@ -1,14 +1,14 @@
 use crate::models::{
-    L2BookRequest, L2BookResponse, OpenOrdersResponse, OrderStatusResponse,
-    RateLimitResponse, SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse,
-    UserFillsResponse,
+    CandleSnapshotRequest, CandleSnapshotResponse, L2BookRequest, L2BookResponse,
+    OpenOrdersResponse, OrderStatusResponse, RateLimitResponse, SpotAssetResponse,
+    SpotMetaResponse, SpotTokenBalancesResponse, UserFillsResponse,
 };
 use ethers::types::H160;
+use log::debug;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use log::debug;
 
 /// HttpClientError 型を定義
 #[derive(Debug)]
@@ -57,18 +57,22 @@ impl HttpClient {
             .map_err(|e| HttpClientError::JsonParse(e.to_string()))?;
 
         // POSTリクエストを送信
-        let response_text = self
+        let response = self
             .client
             .post(format!("{}{}", self.base_url, "/info"))
             .header("Content-Type", "application/json")
             .body(data)
             .send()
             .await
-            .map_err(HttpClientError::RequestFailed)?
+            .map_err(HttpClientError::RequestFailed)?;
+
+        let status = response.status();
+        let response_text = response
             .text()
             .await
             .map_err(HttpClientError::RequestFailed)?;
 
+        debug!("Status: {}", status);
         debug!("Response: {}", response_text);
 
         // レスポンスを JSON にデシリアライズ
@@ -152,8 +156,16 @@ impl HttpClient {
         self.send_info_request(request_body).await
     }
 
-    pub async fn fetch_candle_snapshot(&self) {
-        todo!("fetch_candle_snapshot");
+    pub async fn fetch_candle_snapshot(
+        &self,
+        coin: &str,
+        interval: &str,
+        start_time: Option<u64>,
+        end_time: Option<u64>,
+    ) -> Result<CandleSnapshotResponse, HttpClientError> {
+        let request_body = CandleSnapshotRequest::new(coin, interval, start_time, end_time);
+        debug!("Request: {:#?}", request_body);
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_builder_fee_approval(&self) {
