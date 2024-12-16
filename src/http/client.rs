@@ -1,7 +1,8 @@
 use crate::models::{
     CandleSnapshotRequest, CandleSnapshotResponse, HistoricalOrdersResponse, L2BookRequest,
-    L2BookResponse, OpenOrdersResponse, OrderStatusRequest, OrderStatusResponse, RateLimitResponse,
-    SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse, UserFillsResponse,
+    L2BookResponse, OpenOrdersResponse, OrderStatusRequest, OrderStatusResponse, PerpMetaResponse,
+    RateLimitResponse, SpotAssetResponse, SpotMetaResponse, SpotTokenBalancesResponse,
+    UserFillsResponse,
 };
 use ethers::types::H160;
 use log::debug;
@@ -200,8 +201,9 @@ impl HttpClient {
         todo!("fetch_spot_deploy_auction_info");
     }
 
-    pub async fn fetch_perpetuals_meta(&self) {
-        todo!("fetch_perpetuals_meta");
+    pub async fn fetch_perp_meta(&self) -> Result<PerpMetaResponse, HttpClientError> {
+        let request_body = serde_json::json!({"type": "meta"});
+        self.send_info_request(request_body).await
     }
 
     pub async fn fetch_perpetuals_asset_contexts(&self) {

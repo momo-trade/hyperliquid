@@ -1,5 +1,5 @@
 use hyperliquid::http::client::HttpClient;
-use hyperliquid::models::TokenManager;
+use hyperliquid::models::{MarketType, TokenManager};
 use hyperliquid::utils::time::unix_time_to_jst;
 use hyperliquid::websocket::client::WebSocketConnection;
 use log::{info, warn};
@@ -9,8 +9,7 @@ use tokio::time::{self, Duration};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init(); // Initialize the logger
-                                                                                                // let url = "wss://api.hyperliquid.xyz/ws";
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let connection = WebSocketConnection::connect_with_retries(false).await;
     let connection = Arc::new(connection);
@@ -19,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token_manager = TokenManager::from_api(&http_client).await.unwrap();
 
     let symbol = "HYPE/USDC";
-    let coin = match token_manager.get_internal_code(symbol) {
+    let coin = match token_manager.get_internal_code(MarketType::Spot, symbol) {
         Some(code) => code.clone(),
         None => {
             println!("Token not found");
@@ -55,14 +54,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         connection_clone.start_ping_task().await;
     });
 
-    // Periodically access `all_mids` and `trades`
     let connection_clone = Arc::clone(&connection);
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(1));
         loop {
             interval.tick().await;
 
-            // Access `all_mids`
             let all_mids = connection_clone.all_mids.lock().await;
             // info!("allMids: {:?}", all_mids);
             if let Some(mid_price) = all_mids.get(coin.as_str()) {
@@ -71,7 +68,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 warn!("{} mid_price not found.", symbol);
             }
 
-            // Access `trades`
             let trades = connection_clone.trades.lock().await;
             if trades.is_empty() {
                 warn!("No trade data available.");

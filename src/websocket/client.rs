@@ -94,11 +94,23 @@ impl WebSocketConnection {
                                 // 再接続後にサブスクリプションを再送信
                                 let subscriptions = self.subscriptions.lock().await.clone();
                                 for subscription in subscriptions {
-                                    let subscription_type =
-                                        subscription.get("type").cloned().unwrap_or_default();
-                                    let _ = self
+                                    let subscription_type = match subscription.get("type") {
+                                        Some(t) => t.clone(),
+                                        None => {
+                                            error!(
+                                                "Subscription missing type field: {:?}",
+                                                subscription
+                                            );
+                                            continue;
+                                        }
+                                    };
+
+                                    if let Err(e) = self
                                         .subscribe_with_strings(&subscription_type, subscription)
-                                        .await;
+                                        .await
+                                    {
+                                        error!("Failed to resubscribe: {}", e);
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -156,7 +168,6 @@ impl WebSocketConnection {
             .and_then(|v| v.as_object_mut())
         {
             for (key, value) in &params {
-                // `params` を借用する
                 subscription_obj.insert(
                     key.to_string(),
                     serde_json::Value::String(value.to_string()),
