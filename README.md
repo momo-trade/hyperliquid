@@ -1,7 +1,7 @@
 # Hyperliquid Rust SDK（Deprecated）
 
 ## ⚠️ Important Notice:
-This project is no longer actively developed. Development has moved to the rust_trading project, which offers a more comprehensive and versatile solution for trading-related applications. This repository will remain available for reference but is planned to be archived in the future. We recommend transitioning to rust_trading for ongoing support and updates.
+This project is no longer actively developed. Development has moved to the [rust_trading](https://github.com/momo-trade/rust_trading) project, which offers a more comprehensive and versatile solution for trading-related applications. This repository will remain available for reference but is planned to be archived in the future. We recommend transitioning to rust_trading for ongoing support and updates.
 
 ## Overview
 This is a simple wrapper for interacting with the Hyperliquid exchange using Rust. If you're looking to trade on Hyperliquid with Rust, this SDK is for you. While an official SDK exists, it's not actively maintained, so this project was created to provide a more reliable and user-friendly option.
